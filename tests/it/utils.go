@@ -27,8 +27,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/resolver"
-
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/ibm-powervs-block-csi-driver/pkg/driver"
@@ -121,15 +119,13 @@ func newCSIClient() (*CSIClient, error) {
 					return nil, err
 				}
 				var conn net.Conn
-				err = wait.PollUntilContextTimeout(context.Background(), 10*time.Second, 3*time.Minute, true, func(context.Context) (bool, error) {
+				Eventually(func() error {
 					conn, err = net.Dial(scheme, addr)
 					if err != nil {
 						klog.Warningf("Client failed to dial endpoint %v", endpoint)
-						return false, err
 					}
-					klog.Infof("Client succeeded to dial endpoint %v", endpoint)
-					return true, nil
-				})
+					return err
+				}, 3*time.Minute, 10*time.Second).Should(Succeed())
 				if err != nil || conn == nil {
 					return nil, fmt.Errorf("failed to get client connection: %v", err)
 				}
